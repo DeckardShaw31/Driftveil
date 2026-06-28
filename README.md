@@ -113,6 +113,8 @@ pact.dataset.no_dropped_columns()
 ```
 
 ### Reporting & CI/CD Integration
+
+#### Python API
 ```python
 report = pact.enforce(new_df, raise_on_fail=False)
 
@@ -127,12 +129,22 @@ report.assert_passed() # raises ContractViolationError
 pact.save("production.pact.json")
 pact2 = DriftVeil.load("production.pact.json", reference_df)
 
-# Export interactive report dashboards
+# Export interactive report dashboards (automatically embeds plots inline)
 report.to_html("drift_report.html")
 
 # Plot drift metrics
 fig = report.plot_drifts()
 fig.savefig("drift_summary.png")
+
+# Log directly to active MLflow run
+report.to_mlflow()
+```
+
+#### Command Line Interface (CLI)
+Run checks directly on files (CSV, Parquet, or JSON) using saved pact files in bash or scheduler pipelines:
+```bash
+# Exit code is 0 on pass, or 1 on contract failure (when --raise-on-fail is set)
+driftveil check new_data.csv --pact production.pact.json --raise-on-fail
 ```
 
 ---

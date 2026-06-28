@@ -1,8 +1,10 @@
 import html
+import io
+import base64
 from typing import Any
 
 def generate_html_report(report: Any, path: str):
-    """Generate a premium, responsive HTML report representing drift checks."""
+    """Generate a premium, responsive HTML report representing drift checks with embedded visualization."""
     
     results = report.results
     total_checks = len(results)
@@ -14,6 +16,20 @@ def generate_html_report(report: Any, path: str):
     overall_status = "PASSED" if report.passed else "FAILED"
     status_class = "badge-success" if report.passed else "badge-danger"
     
+    # 1. Try to generate base64 encoded matplotlib plot
+    img_str = ""
+    plot_error = ""
+    try:
+        fig = report.plot_drifts()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=150)
+        buf.seek(0)
+        img_str = base64.b64encode(buf.read()).decode("utf-8")
+        import matplotlib.pyplot as plt
+        plt.close(fig)
+    except Exception as e:
+        plot_error = f"Could not generate plot: {str(e)}"
+        
     # Generate table rows
     table_rows = []
     for r in results:
@@ -62,6 +78,25 @@ def generate_html_report(report: Any, path: str):
         
     table_content = "\n".join(table_rows) if table_rows else '<tr><td colspan="7" class="empty-state">No checks executed</td></tr>'
     
+    # Inline plot element if available
+    if img_str:
+        plot_html = f"""
+        <div class="plot-card">
+            <h3>Contract Visualizations</h3>
+            <img src="data:image/png;base64,{img_str}" alt="Drift Summary Plot" />
+        </div>
+        """
+        layout_class = "split-layout"
+    else:
+        err_msg = plot_error if plot_error else "Matplotlib not installed. Install with 'pip install driftveil[all]' to enable plots."
+        plot_html = f"""
+        <div class="plot-card placeholder">
+            <h3>Contract Visualizations</h3>
+            <div class="placeholder-text">{err_msg}</div>
+        </div>
+        """
+        layout_class = "single-layout"
+
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -96,7 +131,7 @@ def generate_html_report(report: Any, path: str):
         }}
         .container {{
             width: 100%;
-            max-width: 1200px;
+            max-width: 1300px;
         }}
         header {{
             display: flex;
@@ -171,11 +206,29 @@ def generate_html_report(report: Any, path: str):
             text-transform: uppercase;
             letter-spacing: 0.05em;
         }}
+        
+        /* Layout modes */
+        .split-layout {{
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+        }}
+        .single-layout {{
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }}
+        @media (max-width: 1024px) {{
+            .split-layout {{
+                grid-template-columns: 1fr;
+            }}
+        }}
+        
         .control-panel {{
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
             gap: 16px;
         }}
@@ -204,6 +257,7 @@ def generate_html_report(report: Any, path: str):
             border-color: var(--text-primary);
             font-weight: 600;
         }}
+        
         .report-card {{
             background-color: var(--card-bg);
             border: 1px solid var(--border-color);
@@ -282,6 +336,46 @@ def generate_html_report(report: Any, path: str):
             font-size: 0.85rem;
             color: #f472b6;
         }}
+        
+        /* Plot Card styles */
+        .plot-card {{
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }}
+        .plot-card h3 {{
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            align-self: flex-start;
+            color: var(--text-primary);
+        }}
+        .plot-card img {{
+            width: 100%;
+            max-width: 500px;
+            border-radius: 8px;
+            background-color: white; /* Contrast with white matplotlib bg */
+            padding: 10px;
+        }}
+        .plot-card.placeholder {{
+            justify-content: center;
+            min-height: 250px;
+        }}
+        .placeholder-text {{
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 20px;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            width: 80%;
+        }}
     </style>
 </head>
 <body>
@@ -315,32 +409,40 @@ def generate_html_report(report: Any, path: str):
             </div>
         </div>
         
-        <div class="control-panel">
-            <div class="filters">
-                <button class="filter-btn active" onclick="filterReport('all')">All</button>
-                <button class="filter-btn" onclick="filterReport('passed')">Passed</button>
-                <button class="filter-btn" onclick="filterReport('failed')">Failed (Errors)</button>
-                <button class="filter-btn" onclick="filterReport('warning')">Warnings</button>
+        <div class="{layout_class}">
+            <div class="left-section">
+                <div class="control-panel">
+                    <div class="filters">
+                        <button class="filter-btn active" onclick="filterReport('all')">All</button>
+                        <button class="filter-btn" onclick="filterReport('passed')">Passed</button>
+                        <button class="filter-btn" onclick="filterReport('failed')">Failed (Errors)</button>
+                        <button class="filter-btn" onclick="filterReport('warning')">Warnings</button>
+                    </div>
+                </div>
+                
+                <div class="report-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 5%"></th>
+                                <th style="width: 20%">Target</th>
+                                <th style="width: 15%">Contract</th>
+                                <th style="width: 30%">Details</th>
+                                <th style="width: 10%">Expected</th>
+                                <th style="width: 10%">Actual</th>
+                                <th style="width: 10%">Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-body">
+                            {table_content}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-        </div>
-        
-        <div class="report-card">
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 5%"></th>
-                        <th style="width: 20%">Target</th>
-                        <th style="width: 15%">Contract</th>
-                        <th style="width: 30%">Details</th>
-                        <th style="width: 10%">Expected</th>
-                        <th style="width: 10%">Actual</th>
-                        <th style="width: 10%">Severity</th>
-                    </tr>
-                </thead>
-                <tbody id="report-body">
-                    {table_content}
-                </tbody>
-            </table>
+            
+            <div class="right-section">
+                {plot_html}
+            </div>
         </div>
     </div>
     
@@ -352,7 +454,6 @@ def generate_html_report(report: Any, path: str):
             event.target.classList.add('active');
             
             const rows = document.querySelectorAll('.report-row');
-            let hasVisible = false;
             
             rows.forEach(row => {{
                 const passed = row.getAttribute('data-passed') === 'true';
@@ -360,16 +461,12 @@ def generate_html_report(report: Any, path: str):
                 
                 if (type === 'all') {{
                     row.style.display = '';
-                    hasVisible = true;
                 }} else if (type === 'passed' && passed) {{
                     row.style.display = '';
-                    hasVisible = true;
                 }} else if (type === 'failed' && !passed && severity === 'error') {{
                     row.style.display = '';
-                    hasVisible = true;
                 }} else if (type === 'warning' && !passed && severity === 'warning') {{
                     row.style.display = '';
-                    hasVisible = true;
                 }} else {{
                     row.style.display = 'none';
                 }}

@@ -140,3 +140,70 @@ def test_reporting_features(sample_data):
     fig = report.plot_drifts()
     assert fig is not None
     plt.close(fig)
+
+def test_cli_execution(sample_data):
+    ref_df, new_df = sample_data
+    pact = DriftVeil(ref_df)
+    pact.column("age").is_normal()
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pact_path = os.path.join(tmpdir, "pact.json")
+        pact.save(pact_path)
+        
+        data_path = os.path.join(tmpdir, "new_data.csv")
+        new_df.to_csv(data_path, index=False)
+        
+        from unittest.mock import patch
+        import sys
+        
+        test_args = ["driftveil", data_path, "--pact", pact_path]
+        with patch.object(sys, 'argv', test_args):
+            with patch('sys.exit', side_effect=SystemExit) as mock_exit:
+                from driftveil.cli import main
+                try:
+                    main()
+                except SystemExit:
+                    pass
+                mock_exit.assert_called_with(0)
+
+def test_cli_failure(sample_data):
+    ref_df, new_df = sample_data
+    pact = DriftVeil(ref_df)
+    pact.column("revenue").mean_stable(tolerance=0.01) # will fail
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        pact_path = os.path.join(tmpdir, "pact.json")
+        pact.save(pact_path)
+        
+        data_path = os.path.join(tmpdir, "new_data.csv")
+        new_df.to_csv(data_path, index=False)
+        
+        from unittest.mock import patch
+        import sys
+        
+        test_args = ["driftveil", data_path, "--pact", pact_path, "--raise-on-fail"]
+        with patch.object(sys, 'argv', test_args):
+            with patch('sys.exit', side_effect=SystemExit) as mock_exit:
+                from driftveil.cli import main
+                try:
+                    main()
+                except SystemExit:
+                    pass
+                mock_exit.assert_called_with(1)
+
+def test_mlflow_integration(sample_data):
+    ref_df, new_df = sample_data
+    pact = DriftVeil(ref_df)
+    pact.column("age").is_normal()
+    report = pact.enforce(new_df)
+    
+    from unittest.mock import patch, MagicMock
+    mock_mlflow = MagicMock()
+    mock_mlflow.active_run.return_value = True
+    
+    with patch.dict('sys.modules', {'mlflow': mock_mlflow}):
+        report.to_mlflow()
+        assert mock_mlflow.log_param.called
+        assert mock_mlflow.log_metric.called
+        assert mock_mlflow.log_artifact.called
+

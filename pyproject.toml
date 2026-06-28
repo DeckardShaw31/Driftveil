@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "driftveil"
-version = "0.1.0"
+version = "0.2.0"
 description = "Minimalist, zero-config data drift detection for Python"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -30,6 +30,9 @@ plots = ["matplotlib"]
 ml = ["scikit-learn"]
 mlflow = ["mlflow"]
 all = ["polars", "matplotlib", "scikit-learn", "mlflow"]
+
+[project.scripts]
+driftveil = "driftveil.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/driftveil"

@@ -113,3 +113,8 @@ class ContractReport:
         """Returns a matplotlib figure summarizing the drifts."""
         from driftveil.report.plots import plot_drifts
         return plot_drifts(self)
+
+    def to_mlflow(self, artifact_path: str = "drift_reports"):
+        """Logs this report to the active MLflow run."""
+        from driftveil.report.mlflow import log_report_to_mlflow
+        log_report_to_mlflow(self, artifact_path)
