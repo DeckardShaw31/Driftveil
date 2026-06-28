@@ -2,6 +2,8 @@
 
 Minimalist, zero-config data drift detection for Python. Protect your ML models and data pipelines from silent distribution shifts in 3 lines of code.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1D_rC-2QvP-5X8UXfafEVp8xp2Ai90Ufl?usp=sharing)
+
 ---
 
 ## ⚡ 30-Second Quickstart
