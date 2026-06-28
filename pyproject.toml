@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "driftveil"
+version = "0.1.0"
+description = "Minimalist, zero-config data drift detection for Python"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [
+    { name = "Driftveil Contributors" }
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "pandas>=1.5",
+    "scipy>=1.9",
+    "numpy>=1.21",
+]
+
+[project.optional-dependencies]
+polars = ["polars"]
+plots = ["matplotlib"]
+ml = ["scikit-learn"]
+mlflow = ["mlflow"]
+all = ["polars", "matplotlib", "scikit-learn", "mlflow"]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/driftveil"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["driftveil*"]
